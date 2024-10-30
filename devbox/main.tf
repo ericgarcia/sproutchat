@@ -7,7 +7,7 @@ variable "key_name" {
 variable "public_key_path" {
   description = "Path to the SSH public key file."
   type        = string
-  default     = "~/.ssh/id_rsa.pub"  # Default path; users can override this in terraform.tfvars
+  default     = "~/.ssh/id_rsa.pub" # Default path; users can override this in terraform.tfvars
 }
 
 provider "aws" {
@@ -24,14 +24,14 @@ resource "aws_key_pair" "my_key" {
 resource "aws_security_group" "ssh_access" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
-  
+
   ingress {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Open to all IPs; restrict as needed
+    cidr_blocks = ["0.0.0.0/0"] # Open to all IPs; restrict as needed
   }
-  
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -90,8 +90,8 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 }
 
 # EC2 Instance
-resource "aws_instance" "dev_container_instance" {
-  ami           = "ami-0aada1758622f91bb"  # Replace with the desired AMI ID
+resource "aws_instance" "sproutchat_devbox" {
+  ami           = "ami-0aada1758622f91bb" # Replace with the desired AMI ID
   instance_type = "t3.micro"
   key_name      = var.key_name
 
@@ -104,17 +104,17 @@ resource "aws_instance" "dev_container_instance" {
   }
 
   # Docker setup script
-  user_data = file("${path.module}/scripts/install_tools.sh")
+  user_data = file("${path.module}/install_tools.sh")
 }
 
 # Output the instance's public IP
 output "instance_public_ip" {
-  value = aws_instance.dev_container_instance.public_ip
+  value = aws_instance.sproutchat_devbox.public_ip
 }
 
 # Output the instance's ID
 output "instance_id" {
-  value = aws_instance.dev_container_instance.id
+  value       = aws_instance.sproutchat_devbox.id
   description = "The ID of the EC2 instance"
 }
 
