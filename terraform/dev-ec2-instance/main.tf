@@ -104,19 +104,7 @@ resource "aws_instance" "dev_container_instance" {
   }
 
   # Docker setup script
-  user_data = <<-EOF
-              #!/bin/bash
-              # Update package lists and install Docker
-              sudo apt update -y
-              sudo apt install -y docker.io
-              # Enable Docker service
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              # Add user to the Docker group
-              sudo usermod -aG docker ubuntu
-              # Optionally, install Docker Compose
-              sudo apt install -y docker-compose
-              EOF  
+  user_data = file("${path.module}/scripts/install_tools.sh")
 }
 
 # Output the instance's public IP

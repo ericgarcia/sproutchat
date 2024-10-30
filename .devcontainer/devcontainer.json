@@ -1,0 +1,20 @@
+{
+    "name": "Python Dev Container",
+    "image": "python:3.9-slim",
+    "postCreateCommand": "pip install -r requirements.txt",
+    "remoteUser": "vscode",
+    "features": {
+      "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+    },
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "terminal.integrated.shell.linux": "/bin/bash"
+        }
+      }
+    },
+    "mounts": [
+      "source=${localWorkspaceFolder},target=/workspace,type=bind"
+    ],
+    "workspaceFolder": "/workspace"
+}

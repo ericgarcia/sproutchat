@@ -6,24 +6,20 @@ ACTION=$2  # "start" or "stop"
 PROFILE="default"  # Update with your AWS CLI profile if needed
 TERRAFORM_DIR="terraform/$INSTANCE_NAME"  # Path to the Terraform configuration
 
-# Function to initialize and apply Terraform if infrastructure does not exist
-initialize_terraform() {
-    echo "Initializing and applying Terraform configuration..."
-    terraform -chdir=$TERRAFORM_DIR init
-    terraform -chdir=$TERRAFORM_DIR apply -auto-approve
-}
-
 # Check if the instance ID is available from Terraform output
 INSTANCE_ID=$(terraform -chdir=$TERRAFORM_DIR output -raw instance_id 2>&1 | grep -E '^[a-zA-Z0-9\-]+$' | awk 'NR==1')
 
 # If INSTANCE_ID is empty, run Terraform to create the infrastructure
 if [[ -z $INSTANCE_ID ]]; then
     echo "No instance found. Creating infrastructure with Terraform..."
-    initialize_terraform
+    terraform -chdir=$TERRAFORM_DIR init
     INSTANCE_ID=$(terraform -chdir=$TERRAFORM_DIR output -raw instance_id)
 else
     echo "Instance already exists with ID: $INSTANCE_ID"
 fi
+
+echo "Applying Terraform Configuration..."
+terraform -chdir=$TERRAFORM_DIR apply -auto-approve
 
 # Function to update the .ssh/config file with the new IP
 update_ssh_config() {
