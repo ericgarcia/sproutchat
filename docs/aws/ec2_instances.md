@@ -75,3 +75,29 @@ These instances balance cost and performance and should cover a wide range of GP
 ### Notes:
 - **t3.micro**: This instance type provides 2 vCPUs and 1 GB memory, similar to `t3a.micro`, but with an Intel processor. It’s a versatile option for general-purpose workloads, and it’s also eligible for the Free Tier for 750 hours per month for the first 12 months.
 - **t3.micro vs. t3a.micro**: `t3.micro` has slightly higher costs but may provide better performance in some cases due to the Intel architecture.
+
+## Instances with at least 16 GB RAM
+
+| Instance Type   | vCPUs | Memory | On-Demand Cost (Approx.) | Free Tier Eligible | Notes                                       |
+|-----------------|-------|--------|---------------------------|--------------------|---------------------------------------------|
+| **t3a.xlarge**  | 4     | 16 GB  | $0.0832 per hour         | No                 | AMD-based, general-purpose, cost-effective  |
+| **t3.xlarge**   | 4     | 16 GB  | $0.0832 per hour         | No                 | Intel-based, general-purpose                |
+| **m5.large**    | 2     | 16 GB  | $0.096 per hour          | No                 | Intel-based, general-purpose, reliable      |
+| **m5a.large**   | 2     | 16 GB  | $0.0864 per hour         | No                 | AMD-based, general-purpose, lower-cost      |
+| **t4g.xlarge**  | 4     | 16 GB  | $0.0672 per hour         | No                 | ARM-based, general-purpose, efficient       |
+| **r5.large**    | 2     | 16 GB  | $0.126 per hour          | No                 | Intel-based, memory-optimized               |
+| **c5d.xlarge**  | 4     | 16 GB  | $0.192 per hour          | No                 | Intel-based, compute-optimized with SSD     |
+| **c5a.xlarge**  | 4     | 16 GB  | $0.153 per hour          | No                 | AMD-based, compute-optimized                |
+| **r5a.large**   | 2     | 16 GB  | $0.113 per hour          | No                 | AMD-based, memory-optimized, lower-cost     |
+| **m5.xlarge**   | 4     | 16 GB  | $0.192 per hour          | No                 | Intel-based, general-purpose, balanced cost |
+| **m6g.large**   | 2     | 16 GB  | $0.077 per hour          | No                 | ARM-based, general-purpose, energy-efficient|
+
+### Notes
+- **General-purpose** instances (e.g., `t3a`, `m5`, `t4g`) are suitable for applications with balanced compute, memory, and networking needs.
+- **Memory-optimized** instances (e.g., `r5`) are designed for applications with high memory requirements, such as large databases and in-memory caches.
+- **Compute-optimized** instances (e.g., `c5`) are ideal for compute-intensive applications that benefit from higher processing power.
+- **ARM-based Instances** (e.g., `t4g`, `m6g`) generally offer better cost-performance ratios and are more energy-efficient, although they may require ARM-compatible software.
+
+### Additional Comparisons
+- **t3 vs. t3a**: The `t3` series has a slightly higher cost than `t3a` but may offer better performance due to Intel processors.
+- **m5 vs. m5a**: The `m5a` series uses AMD processors, offering a lower cost while maintaining similar performance to `m5`.

@@ -91,8 +91,9 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # EC2 Instance
 resource "aws_instance" "sproutchat_devbox" {
-  ami           = "ami-0aada1758622f91bb" # Replace with the desired AMI ID
-  instance_type = "t3.micro"
+  ami = "ami-0aada1758622f91bb" # Replace with the desired AMI ID
+  # instance_type = "t3.micro" # Tiny test instance
+  instance_type = "t3.xlarge" # 16GB RAM, 4 vCPUs
   key_name      = var.key_name
 
   # Attach security group and IAM instance profile
