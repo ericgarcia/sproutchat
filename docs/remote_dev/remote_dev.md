@@ -62,29 +62,33 @@
    Here’s a sample configuration file for a Python development environment:
 
    ```json
-   {
-     "name": "Python Dev Container",
-     "image": "python:3.9-slim",
-     "postCreateCommand": "pip install -r requirements.txt",
-     "remoteUser": "vscode",
-     "features": {
-       "ghcr.io/devcontainers/features/docker-in-docker:2": {}
-     },
-     "settings": {
-       "terminal.integrated.shell.linux": "/bin/bash"
-     },
-     "mounts": [
-       "source=${localWorkspaceFolder},target=/workspace,type=bind"
-     ],
-     "workspaceFolder": "/workspace"
-   }
+    {
+        "name": "Python Dev Container",
+        "image": "python:3.9-slim",
+        "postCreateCommand": "pip install -r requirements.txt",
+        "remoteUser": "vscode",
+        "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+        },
+        "customizations": {
+        "vscode": {
+            "settings": {
+            "terminal.integrated.shell.linux": "/bin/bash"
+            }
+        }
+        },
+        "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind"
+        ],
+        "workspaceFolder": "/workspace"
+    }
    ```
 
 3. **Upload Your Project to the EC2 Instance**:
    - You can use `rsync` to sync your project directory with the EC2 instance:
 
      ```bash
-     rsync -avz -e "ssh -i /path/to/your-key.pem" /path/to/local/project/ ec2-user@your-ec2-ip:/path/to/remote/project/
+     rsync -avz --exclude-from='.gitignore' ~/code/sproutchat/ dev-ec2-instance:~/code/sproutchat
      ```
 
 ### Step 4: Connect to EC2 and Open Dev Container in VS Code

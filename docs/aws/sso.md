@@ -1,3 +1,14 @@
+## Setting up AWS
+This is the login url for this project:
+```
+https://d-9067d92e28.awsapps.com/start
+```
+
+This is the account ID:
+```
+468435965000
+```
+
 ### How to Use SSO Profiles with eksctl or Other Tools
 Since eksctl and some other AWS tools may not directly recognize SSO profiles, you can use a few methods to work around this:
 
@@ -70,8 +81,8 @@ To double-check that everything is set up correctly, here are a few additional v
        --region us-east-1 \
        --image-id ami-0aada1758622f91bb \
        --instance-type t2.micro \
-       --key-name my-key-pair \
-       --security-group-ids vpc-806794e7
+       --key-name dev_key \
+       --security-group-ids sg-0478f052a083dfd5b
    ```
    Replace `my-key-pair` and `sg-xxxxxxxx` with your actual key pair name and security group ID.
 

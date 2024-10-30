@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Define variables
+INSTANCE_NAME=$1
+ACTION=$2  # "start" or "stop"
+PROFILE="default"  # Update with your AWS CLI profile if needed
+TERRAFORM_DIR="terraform/$INSTANCE_NAME"  # Path to the Terraform configuration
+
+# Function to initialize and apply Terraform if infrastructure does not exist
+initialize_terraform() {
+    echo "Initializing and applying Terraform configuration..."
+    terraform -chdir=$TERRAFORM_DIR init
+    terraform -chdir=$TERRAFORM_DIR apply -auto-approve
+}
+
+# Check if the instance ID is available from Terraform output
+INSTANCE_ID=$(terraform -chdir=$TERRAFORM_DIR output -raw instance_id 2>&1 | grep -E '^[a-zA-Z0-9\-]+$' | awk 'NR==1')
+
+# If INSTANCE_ID is empty, run Terraform to create the infrastructure
+if [[ -z $INSTANCE_ID ]]; then
+    echo "No instance found. Creating infrastructure with Terraform..."
+    initialize_terraform
+    INSTANCE_ID=$(terraform -chdir=$TERRAFORM_DIR output -raw instance_id)
+else
+    echo "Instance already exists with ID: $INSTANCE_ID"
+fi
+
+# Function to update the .ssh/config file with the new IP
+update_ssh_config() {
+    SSH_CONFIG_ENTRY="Host $INSTANCE_NAME
+    HostName $PUBLIC_IP
+    User ubuntu
+    IdentityFile ~/.ssh/id_rsa"
+
+    # Write to .ssh/config
+    if grep -q "Host $INSTANCE_NAME" ~/.ssh/config; then
+        # Update existing entry
+        sed -i "/Host $INSTANCE_NAME/,+3c\\$SSH_CONFIG_ENTRY" ~/.ssh/config
+    else
+        # Append new entry
+        echo -e "\n$SSH_CONFIG_ENTRY" >> ~/.ssh/config
+    fi
+
+    echo "Updated .ssh/config with the new IP address: $PUBLIC_IP"
+}
+
+# Start or stop the instance based on the ACTION argument
+if [[ $ACTION == "start" ]]; then
+    # Start the instance
+    aws ec2 start-instances --instance-ids $INSTANCE_ID --profile $PROFILE
+    echo "Starting instance..."
+    aws ec2 wait instance-running --instance-ids $INSTANCE_ID --profile $PROFILE
+    echo "Instance is running."
+
+    # Get the current public IP after starting the instance
+    PUBLIC_IP=$(aws ec2 describe-instances \
+        --instance-ids $INSTANCE_ID \
+        --query "Reservations[0].Instances[0].PublicIpAddress" \
+        --output text --profile $PROFILE)
+
+    # Update the .ssh/config file with the new IP
+    update_ssh_config
+
+elif [[ $ACTION == "stop" ]]; then
+    # Stop the instance
+    aws ec2 stop-instances --instance-ids $INSTANCE_ID --profile $PROFILE
+    echo "Stopping instance..."
+    aws ec2 wait instance-stopped --instance-ids $INSTANCE_ID --profile $PROFILE
+    echo "Instance is stopped."
+else
+    echo "Invalid action. Use 'start' or 'stop'."
+    exit 1
+fi

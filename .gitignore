@@ -1,0 +1,6 @@
+data/
+models/
+.venv/
+.env.secret
+terraform.tf*
+.terraform*
