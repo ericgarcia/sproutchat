@@ -1,0 +1,30 @@
+{
+    "name": "AWS Dev Container",
+    "image": "mcr.microsoft.com/vscode/devcontainers/python:3.9", // Choose a Python base image with VS Code
+    "features": {
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+        "ghcr.io/devcontainers/features/aws-cli:2": {},
+        "ghcr.io/devcontainers/features/terraform:1": {},
+        "ghcr.io/devcontainers/features/node:1": {}
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-azuretools.vscode-docker",
+                "hashicorp.terraform",
+                "ms-python.python",
+                "redhat.vscode-yaml",
+                "amazonwebservices.aws-toolkit-vscode"
+            ],
+            "settings": {
+                "terminal.integrated.defaultProfile.linux": "/bin/zsh"
+            }
+        }
+    },
+    "postCreateCommand": "pip install boto3",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind",
+        "source=${env:HOME}/.aws,target=/root/.aws,type=bind"
+    ],
+    "workspaceFolder": "/workspace"
+}

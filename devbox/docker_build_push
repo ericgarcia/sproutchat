@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Variables
+AWS_ACCOUNT_ID="468435965000"  # Replace with your AWS account ID
+REGION="us-east-1"  # Replace with your AWS region (e.g., us-east-1)
+IMAGE_NAME="sproutchat-devbox"
+TAG="latest"
+REPOSITORY_NAME="sproutchat-devbox"
+
+# Set the directory where the Dockerfile is located
+DEVBOX_DIR="$(dirname "$0")"
+
+# Full ECR image URI
+ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REPOSITORY_NAME}:${TAG}"
+
+# Step 1: Build the Docker Image
+echo "Building Docker image: $IMAGE_NAME:$TAG from $DEVBOX_DIR"
+docker build -t $IMAGE_NAME:$TAG -f "$DEVBOX_DIR/Dockerfile" "$DEVBOX_DIR"
+
+# Check if the build was successful
+if [ $? -ne 0 ]; then
+    echo "Failed to build Docker image."
+    exit 1
+else
+    echo "Docker image $IMAGE_NAME:$TAG built successfully."
+fi
+
+# Step 2: Log in to Amazon ECR
+echo "Logging into Amazon ECR..."
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+if [ $? -ne 0 ]; then
+    echo "Failed to authenticate Docker to Amazon ECR."
+    exit 1
+fi
+
+# Step 3: Tag the Image with the ECR URI
+echo "Tagging image $IMAGE_NAME:$TAG as $ECR_URI"
+docker tag $IMAGE_NAME:$TAG $ECR_URI
+
+# Step 4: Push the Image to Amazon ECR
+echo "Pushing $ECR_URI to Amazon ECR..."
+docker push $ECR_URI
+if [ $? -ne 0 ]; then
+    echo "Failed to push image to ECR."
+    exit 1
+else
+    echo "Image $ECR_URI pushed successfully."
+fi

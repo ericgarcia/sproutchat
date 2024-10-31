@@ -5,6 +5,7 @@ import sys
 import boto3
 import re
 from pathlib import Path
+import time
 
 # Define variables
 ACTION = sys.argv[1]  # "start" or "stop"
@@ -80,6 +81,25 @@ def update_ssh_config(public_ip):
     print(f"Updated .ssh/config with the new IP address: {public_ip}")
 
 
+def watch_setup():
+    """Watch the setup process by tailing the cloud-init log."""
+
+    # Define the SSH command
+    ssh_command = ["ssh", INSTANCE_NAME, "tail -f /var/log/cloud-init-output.log"]
+
+    # Retry loop
+    while True:
+        try:
+            # Attempt to run the SSH command
+            result = subprocess.run(ssh_command, check=True)
+            break  # Exit the loop if successful
+
+        except subprocess.CalledProcessError:
+            # If SSH connection fails, print waiting message and retry
+            print("Waiting for the system to be available...")
+            time.sleep(5)  # Wait for 5 seconds before retrying
+
+
 def manage_instance(instance_id):
     """Start or stop the instance based on the ACTION argument."""
     if ACTION == "start":
@@ -95,6 +115,9 @@ def manage_instance(instance_id):
 
         # Update the .ssh/config file with the new IP
         update_ssh_config(public_ip)
+
+        # Watch the setup process
+        watch_setup()
 
     elif ACTION == "stop":
         # Stop the instance
