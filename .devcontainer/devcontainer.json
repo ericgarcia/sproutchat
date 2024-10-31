@@ -1,6 +1,6 @@
 {
     "name": "AWS Dev Container",
-    "image": "mcr.microsoft.com/vscode/devcontainers/python:3.9", // Choose a Python base image with VS Code
+    "image": "468435965000.dkr.ecr.us-east-1.amazonaws.com/sproutchat-devbox", // Choose a Python base image with VS Code
     "features": {
         "ghcr.io/devcontainers/features/docker-in-docker:2": {},
         "ghcr.io/devcontainers/features/aws-cli:2": {},

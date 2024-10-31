@@ -38,9 +38,9 @@ sudo apt install -y docker-compose
 # Log success message
 echo "Script completed. Please log out and log back in for Docker group membership changes to take effect."
 
-# Install pytorch
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-pip install transformers accelerate
+# # Install pytorch
+# pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+# pip install transformers accelerate
 
 # Create workspace directory
 mkdir -p /home/ubuntu/code

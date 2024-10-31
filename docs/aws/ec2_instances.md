@@ -92,6 +92,27 @@ These instances balance cost and performance and should cover a wide range of GP
 | **m5.xlarge**   | 4     | 16 GB  | $0.192 per hour          | No                 | Intel-based, general-purpose, balanced cost |
 | **m6g.large**   | 2     | 16 GB  | $0.077 per hour          | No                 | ARM-based, general-purpose, energy-efficient|
 
+## Instances with at least 16 GB RAM and Local Storage
+
+| Instance Type    | vCPUs | Memory | On-Demand Cost (Approx.) | Free Tier Eligible | Local Storage | Notes                                              |
+|------------------|-------|--------|---------------------------|--------------------|---------------|----------------------------------------------------|
+| **t3a.xlarge**   | 4     | 16 GB  | $0.0832 per hour         | No                 | No            | AMD-based, general-purpose, cost-effective         |
+| **t3.xlarge**    | 4     | 16 GB  | $0.0832 per hour         | No                 | No            | Intel-based, general-purpose                       |
+| **m5.large**     | 2     | 16 GB  | $0.096 per hour          | No                 | No            | Intel-based, general-purpose, reliable             |
+| **m5a.large**    | 2     | 16 GB  | $0.0864 per hour         | No                 | No            | AMD-based, general-purpose, lower-cost             |
+| **t4g.xlarge**   | 4     | 16 GB  | $0.0672 per hour         | No                 | No            | ARM-based, general-purpose, efficient              |
+| **r5.large**     | 2     | 16 GB  | $0.126 per hour          | No                 | No            | Intel-based, memory-optimized                      |
+| **c5d.xlarge**   | 4     | 16 GB  | $0.192 per hour          | No                 | Yes           | Intel-based, compute-optimized with NVMe SSD       |
+| **c5a.xlarge**   | 4     | 16 GB  | $0.153 per hour          | No                 | No            | AMD-based, compute-optimized                       |
+| **m5d.xlarge**   | 4     | 16 GB  | $0.226 per hour          | No                 | Yes           | Intel-based, general-purpose with 150 GB NVMe SSD  |
+| **m6gd.large**   | 2     | 16 GB  | $0.096 per hour          | No                 | Yes           | ARM-based, general-purpose with 118 GB NVMe SSD    |
+| **m6gd.xlarge**  | 4     | 16 GB  | $0.192 per hour          | No                 | Yes           | ARM-based, general-purpose with 237 GB NVMe SSD    |
+| **r5d.large**    | 2     | 16 GB  | $0.144 per hour          | No                 | Yes           | Intel-based, memory-optimized with 75 GB NVMe SSD  |
+| **r5d.xlarge**   | 4     | 32 GB  | $0.288 per hour          | No                 | Yes           | Intel-based, memory-optimized with 150 GB NVMe SSD |
+| **r6gd.large**   | 2     | 16 GB  | $0.113 per hour          | No                 | Yes           | ARM-based, memory-optimized with 118 GB NVMe SSD   |
+| **r6gd.xlarge**  | 4     | 32 GB  | $0.226 per hour          | No                 | Yes           | ARM-based, memory-optimized with 237 GB NVMe SSD   |
+
+
 ### Notes
 - **General-purpose** instances (e.g., `t3a`, `m5`, `t4g`) are suitable for applications with balanced compute, memory, and networking needs.
 - **Memory-optimized** instances (e.g., `r5`) are designed for applications with high memory requirements, such as large databases and in-memory caches.
