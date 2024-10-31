@@ -23,7 +23,7 @@
     "postCreateCommand": "pip install boto3",
     "mounts": [
         "source=${localWorkspaceFolder},target=/workspace,type=bind",
-        "source=${env:HOME}/.aws,target=/root/.aws,type=bind"
+        // "source=${env:HOME}/.aws,target=/root/.aws,type=bind"
     ],
     "workspaceFolder": "/workspace"
 }
