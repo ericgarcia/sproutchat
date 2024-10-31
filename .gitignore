@@ -4,3 +4,4 @@ models/
 .env.secret
 terraform.tf*
 .terraform*
+.DS_Store
