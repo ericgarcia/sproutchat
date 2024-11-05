@@ -105,6 +105,7 @@ module "build_ami" {
   depends_on = [module.base_instance]
 }
 
+
 # Module to deploy the instance using the custom AMI
 module "ami_instance" {
   source               = "./modules/ami_instance"

@@ -24,7 +24,7 @@ variable "base_ami" {
 }
 
 # Define the EC2 instance to configure directly
-resource "aws_instance" "base_dev_instance" {
+resource "aws_instance" "base_instance" {
   ami                         = var.base_ami
   instance_type               = "r5d.large"
   key_name                    = var.key_name
@@ -39,7 +39,7 @@ resource "aws_instance" "base_dev_instance" {
 
 # Upload and run setup script using remote-exec
 resource "null_resource" "run_setup_script" {
-  depends_on = [aws_instance.base_dev_instance]
+  depends_on = [aws_instance.base_instance]
 
   # Upload the setup script to the instance
   provisioner "file" {
@@ -50,7 +50,7 @@ resource "null_resource" "run_setup_script" {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file(var.private_key_path)
-      host        = aws_instance.base_dev_instance.public_ip
+      host        = aws_instance.base_instance.public_ip
     }
   }
 
@@ -65,7 +65,34 @@ resource "null_resource" "run_setup_script" {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file(var.private_key_path)
-      host        = aws_instance.base_dev_instance.public_ip
+      host        = aws_instance.base_instance.public_ip
+    }
+  }
+
+  # Upload the requirements.txt file from one directory above the Terraform root directory
+  provisioner "file" {
+    source      = "${path.root}/../requirements.txt"
+    destination = "/home/ubuntu/requirements.txt"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = aws_instance.base_instance.public_ip
+    }
+  }
+
+  # Run pip to install the packages from requirements.txt
+  provisioner "remote-exec" {
+    inline = [
+      "pip install -r /home/ubuntu/requirements.txt"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = aws_instance.base_instance.public_ip
     }
   }
 }
@@ -73,10 +100,10 @@ resource "null_resource" "run_setup_script" {
 # Output the public IP and instance ID
 output "instance_id" {
   description = "ID of the created EC2 instance."
-  value       = aws_instance.base_dev_instance.id
+  value       = aws_instance.base_instance.id
 }
 
 output "public_ip" {
   description = "Public IP of the created EC2 instance."
-  value       = aws_instance.base_dev_instance.public_ip
+  value       = aws_instance.base_instance.public_ip
 }

@@ -19,7 +19,7 @@ variable "iam_instance_profile" {
 }
 
 # Deploy EC2 instance using the custom AMI
-resource "aws_instance" "ami_dev_instance" {
+resource "aws_instance" "ami_instance" {
   ami                  = var.ami_id
   instance_type        = "r5d.large"
   key_name             = var.key_name
@@ -34,10 +34,10 @@ resource "aws_instance" "ami_dev_instance" {
 # Output the public IP and instance ID
 output "instance_id" {
   description = "ID of the created EC2 instance."
-  value       = aws_instance.ami_dev_instance.id
+  value       = aws_instance.ami_instance.id
 }
 
 output "public_ip" {
   description = "Public IP of the created EC2 instance."
-  value       = aws_instance.ami_dev_instance.public_ip
+  value       = aws_instance.ami_instance.public_ip
 }
