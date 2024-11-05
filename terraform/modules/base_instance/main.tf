@@ -41,7 +41,7 @@ variable "git_user_name" {
 # Define the EC2 instance to configure directly
 resource "aws_instance" "base_instance" {
   ami           = var.base_ami
-  instance_type = "r5d.large"
+  instance_type = "r5d.xlarge"
   key_name      = var.key_name
 
   security_groups      = [var.security_group]
