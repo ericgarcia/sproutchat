@@ -3,8 +3,13 @@ setuptools
 torch==2.5.1
 transformers==4.46.2
 accelerate==1.1.0
+ray==2.38.0
+sentencepiece==0.2.0
+einops==0.8.0
 
 # Optional dependencies (if you need Jupyter and monitoring tools)
 jupyterlab==4.0.5  # For running in Jupyter Notebooks
+notebook==7.2.2
+ipywidgets==8.1.5
 numpy==1.26.4      # Commonly needed for machine learning
 psutil==5.9.5      # System monitoring (helpful for checking memory usage)

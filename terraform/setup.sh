@@ -75,9 +75,6 @@ EOF
 # Set ownership for .zshrc if running as root
 chown ubuntu:ubuntu /home/ubuntu/.zshrc
 
-# Install direnv
-sudo apt install direnv
-
 # Install Python and create a virtual environment with pyenv
 echo "Installing Python $PYTHON_VERSION with pyenv..."
 sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv install $PYTHON_VERSION
@@ -85,6 +82,15 @@ sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv install $PYTHON_VERSION
 # Set GitHub identity
 git config --global user.email "$GIT_USER_NAME"
 git config --global user.name "$GIT_USER_EMAIL"
+
+# Install Kubernetes tools
+echo "Installing Kubernetes tools..."
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" 
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl.sha256"
+echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+echo "$(kubectl version --client)"
+echo "Kubernetes tools installed."
 
 echo "Setup completed successfully."
 touch /home/ubuntu/setup_complete
