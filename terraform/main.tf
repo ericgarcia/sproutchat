@@ -94,6 +94,7 @@ module "base_instance" {
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
   private_key_path     = var.private_key_path
   base_ami             = var.base_ami
+  python_version       = file("${path.module}/../.python-version")
 }
 
 # Module to build the AMI
@@ -104,6 +105,7 @@ module "build_ami" {
 
   depends_on = [module.base_instance]
 }
+
 
 # Module to deploy the instance using the custom AMI
 module "ami_instance" {

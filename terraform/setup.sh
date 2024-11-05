@@ -2,6 +2,14 @@
 
 echo "Starting setup script..."
 
+# Check if a Python version argument is provided
+if [ -z "$1" ]; then
+    echo "Error: No Python version provided."
+    exit 1
+fi
+
+PYTHON_VERSION=$1
+
 # Wait for dpkg lock to be released
 while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
     echo "Waiting for dpkg lock to be released..."
@@ -52,6 +60,10 @@ EOF
 
 # Set ownership for .zshrc if running as root
 chown ubuntu:ubuntu /home/ubuntu/.zshrc
+
+# Install Python and create a virtual environment with pyenv
+echo "Installing Python $PYTHON_VERSION with pyenv..."
+sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv install $PYTHON_VERSION
 
 echo "Setup completed successfully."
 touch /home/ubuntu/setup_complete
