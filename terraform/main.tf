@@ -3,6 +3,16 @@ variable "key_name" {
   type        = string
 }
 
+variable "git_user_email" {
+  description = "The email address to use for Git configuration."
+  type        = string
+}
+
+variable "git_user_name" {
+  description = "The name to use for Git configuration."
+  type        = string
+}
+
 variable "public_key_path" {
   description = "Path to the SSH public key file."
   type        = string
@@ -95,6 +105,8 @@ module "base_instance" {
   private_key_path     = var.private_key_path
   base_ami             = var.base_ami
   python_version       = file("${path.module}/../.python-version")
+  git_user_name        = var.git_user_name
+  git_user_email       = var.git_user_email
 }
 
 # Module to build the AMI

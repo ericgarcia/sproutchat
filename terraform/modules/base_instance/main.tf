@@ -28,6 +28,16 @@ variable "python_version" {
   type        = string
 }
 
+variable "git_user_email" {
+  description = "The email address to use for Git configuration."
+  type        = string
+}
+
+variable "git_user_name" {
+  description = "The name to use for Git configuration."
+  type        = string
+}
+
 # Define the EC2 instance to configure directly
 resource "aws_instance" "base_instance" {
   ami           = var.base_ami
@@ -55,7 +65,7 @@ resource "aws_instance" "base_instance" {
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/setup.sh",
-      "/home/ubuntu/setup.sh ${var.python_version} | tee -a /home/ubuntu/setup.log"
+      "/home/ubuntu/setup.sh -p ${var.python_version} -u ${var.git_user_name} -e ${var.git_user_email} | tee -a /home/ubuntu/setup.log"
     ]
     connection {
       type        = "ssh"
