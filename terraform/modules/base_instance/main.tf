@@ -23,76 +23,45 @@ variable "base_ami" {
   type        = string
 }
 
-# Define the EC2 instance to configure directly
-resource "aws_instance" "base_instance" {
-  ami                         = var.base_ami
-  instance_type               = "r5d.large"
-  key_name                    = var.key_name
-  security_groups             = [var.security_group]
-  iam_instance_profile        = var.iam_instance_profile
-  associate_public_ip_address = true
-
-  tags = {
-    Name = "BaseDevInstance"
-  }
+variable "python_version" {
+  description = "The Python version to install using pyenv."
+  type        = string
 }
 
-# Upload and run setup script using remote-exec
-resource "null_resource" "run_setup_script" {
-  depends_on = [aws_instance.base_instance]
+# Define the EC2 instance to configure directly
+resource "aws_instance" "base_instance" {
+  ami           = var.base_ami
+  instance_type = "t2.micro"
+  key_name      = var.key_name
 
-  # Upload the setup script to the instance
+  security_groups      = [var.security_group]
+  iam_instance_profile = var.iam_instance_profile
+
+  tags = {
+    Name = "BaseInstance"
+  }
+
   provisioner "file" {
     source      = "${path.root}/setup.sh"
     destination = "/home/ubuntu/setup.sh"
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file(var.private_key_path)
-      host        = aws_instance.base_instance.public_ip
+      host        = self.public_ip
     }
   }
 
-  # Execute the setup script remotely
   provisioner "remote-exec" {
     inline = [
       "chmod +x /home/ubuntu/setup.sh",
-      "/home/ubuntu/setup.sh | tee -a /home/ubuntu/setup.log"
+      "/home/ubuntu/setup.sh ${var.python_version} | tee -a /home/ubuntu/setup.log"
     ]
-
     connection {
       type        = "ssh"
       user        = "ubuntu"
       private_key = file(var.private_key_path)
-      host        = aws_instance.base_instance.public_ip
-    }
-  }
-
-  # Upload the requirements.txt file from one directory above the Terraform root directory
-  provisioner "file" {
-    source      = "${path.root}/../requirements.txt"
-    destination = "/home/ubuntu/requirements.txt"
-
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = aws_instance.base_instance.public_ip
-    }
-  }
-
-  # Run pip to install the packages from requirements.txt
-  provisioner "remote-exec" {
-    inline = [
-      "pip install -r /home/ubuntu/requirements.txt"
-    ]
-
-    connection {
-      type        = "ssh"
-      user        = "ubuntu"
-      private_key = file(var.private_key_path)
-      host        = aws_instance.base_instance.public_ip
+      host        = self.public_ip
     }
   }
 }

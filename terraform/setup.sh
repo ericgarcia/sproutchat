@@ -1,28 +1,12 @@
 #!/bin/bash
 
-echo "Starting setup script..."
+# Check if a Python version argument is provided
+if [ -z "$1" ]; then
+    echo "Error: No Python version provided."
+    exit 1
+fi
 
-# Wait for dpkg lock to be released
-while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-    echo "Waiting for dpkg lock to be released..."
-    sleep 5
-done
-
-# Install Zsh
-echo "Installing Zsh..."
-sudo apt-get update
-sudo apt-get install -y zsh
-echo "Zsh installed."
-
-# Install Oh My Zsh without prompts
-echo "Installing Oh My Zsh..."
-export RUNZSH=no
-export CHSH=no
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-echo "Oh My Zsh installed."
-
-# Set zsh as the default shell for the user (if not already done)
-sudo chsh -s $(which zsh) ubuntu
+PYTHON_VERSION=$1
 
 # Install Pyenv dependencies
 echo "Installing Pyenv dependencies..."
@@ -52,6 +36,13 @@ EOF
 
 # Set ownership for .zshrc if running as root
 chown ubuntu:ubuntu /home/ubuntu/.zshrc
+
+# Install Python and create a virtual environment with pyenv
+echo "Installing Python $PYTHON_VERSION with pyenv..."
+sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv install $PYTHON_VERSION
+echo "Creating virtual environment for sproutchat..."
+sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv virtualenv $PYTHON_VERSION sproutchat-env
+sudo -u ubuntu /home/ubuntu/.pyenv/bin/pyenv activate sproutchat-env
 
 echo "Setup completed successfully."
 touch /home/ubuntu/setup_complete
