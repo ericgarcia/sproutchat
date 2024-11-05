@@ -38,7 +38,7 @@ sudo apt-get install -y make build-essential libssl-dev zlib1g-dev \
                         libbz2-dev libreadline-dev libsqlite3-dev wget \
                         curl llvm libncurses5-dev libncursesw5-dev \
                         xz-utils tk-dev libffi-dev liblzma-dev \
-                        python-openssl git
+                        python-openssl git python3.12-dev
 
 # Install Pyenv
 echo "Installing Pyenv..."
@@ -60,6 +60,9 @@ EOF
 
 # Set ownership for .zshrc if running as root
 chown ubuntu:ubuntu /home/ubuntu/.zshrc
+
+# Install direnv
+sudo apt install direnv
 
 # Install Python and create a virtual environment with pyenv
 echo "Installing Python $PYTHON_VERSION with pyenv..."
