@@ -31,7 +31,7 @@ variable "python_version" {
 # Define the EC2 instance to configure directly
 resource "aws_instance" "base_instance" {
   ami           = var.base_ami
-  instance_type = "t2.micro"
+  instance_type = "r5d.large"
   key_name      = var.key_name
 
   security_groups      = [var.security_group]
