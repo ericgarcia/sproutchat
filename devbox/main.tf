@@ -97,7 +97,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 }
 
 resource "aws_instance" "base_instance" {
-  ami           = "ami-0aada1758622f91bb" # Replace with the desired base AMI ID
+  ami           = "ami-0aada1758622f91bb" # Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.4 (Ubuntu 22.04)
   instance_type = "r5d.large"
   key_name      = var.key_name
 
@@ -110,12 +110,24 @@ resource "aws_instance" "base_instance" {
   }
 
   provisioner "file" {
-    source      = "install_tools.sh"
-    destination = "/tmp/install_tools.sh"
+    source      = "install_tools_initial.sh"
+    destination = "/home/ubuntu/install_tools_initial.sh"
 
     connection {
       type        = "ssh"
-      user        = "ubuntu" # Adjust based on your AMI
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = self.public_ip
+    }
+  }
+
+  provisioner "file" {
+    source      = "install_tools_post_reboot.sh"
+    destination = "/home/ubuntu/install_tools_post_reboot.sh"
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
       private_key = file(var.private_key_path)
       host        = self.public_ip
     }
@@ -123,34 +135,65 @@ resource "aws_instance" "base_instance" {
 
   provisioner "remote-exec" {
     inline = [
-      "chmod +x /tmp/install_tools.sh",
-      "sudo /tmp/install_tools.sh"
+      "chmod +x /home/ubuntu/install_tools_initial.sh",
+      "chmod +x /home/ubuntu/install_tools_post_reboot.sh",
+      "sudo /home/ubuntu/install_tools_initial.sh"
     ]
 
     connection {
       type        = "ssh"
-      user        = "ubuntu" # Adjust based on your AMI
+      user        = "ubuntu"
       private_key = file(var.private_key_path)
       host        = self.public_ip
     }
   }
 }
 
-resource "aws_ami_from_instance" "sproutchat-dev-ami" {
-  name               = "sproutchat-dev-ami"
-  source_instance_id = aws_instance.base_instance.id
-  depends_on         = [aws_instance.base_instance]
+resource "null_resource" "wait_for_setup" {
+  depends_on = [aws_instance.base_instance]
 
-  tags = {
-    Name = "SproutChatDevAMI"
+  provisioner "remote-exec" {
+    inline = [
+      "while [ ! -f /home/ubuntu/setup_complete ]; do sleep 10; done"
+    ]
+
+    connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file(var.private_key_path)
+      host        = aws_instance.base_instance.public_ip
+    }
   }
 }
 
-# EC2 Instance
+resource "aws_ami_from_instance" "custom_sproutchat_dev_ami" {
+  name               = "custom-sproutchat-dev-ami"
+  source_instance_id = aws_instance.base_instance.id
+  depends_on         = [null_resource.wait_for_setup]
+}
+
+resource "null_resource" "terminate_base_instance" {
+  depends_on = [aws_ami_from_instance.custom_sproutchat_dev_ami]
+
+  provisioner "local-exec" {
+    command = "aws ec2 terminate-instances --instance-ids ${aws_instance.base_instance.id}"
+  }
+}
+
+data "aws_ami" "custom_ami" {
+  depends_on = [aws_ami_from_instance.custom_sproutchat_dev_ami]
+
+  filter {
+    name   = "name"
+    values = ["custom-sproutchat-dev-ami"]
+  }
+
+  owners = ["self"] # Adjust the owner as needed
+}
+
 resource "aws_instance" "sproutchat_devbox" {
-  ami = "ami-0852de09092f3a061" # Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 22.04)
-  # instance_type = "t3.micro" # Tiny test instance
-  instance_type = "r5d.large" # Intel-based, memory-optimized with 75 GB NVMe SSD 
+  ami           = data.aws_ami.custom_ami.id
+  instance_type = "r5d.large"
   key_name      = var.key_name
 
   # Attach security group and IAM instance profile
@@ -161,8 +204,7 @@ resource "aws_instance" "sproutchat_devbox" {
     Name = "SproutChatDevBox"
   }
 
-  # Docker setup script
-  user_data = file("${path.module}/install_tools.sh")
+  depends_on = [null_resource.terminate_base_instance]
 }
 
 # Output the instance's public IP
@@ -175,4 +217,3 @@ output "instance_id" {
   value       = aws_instance.sproutchat_devbox.id
   description = "The ID of the EC2 instance"
 }
-

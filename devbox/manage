@@ -1,149 +1,124 @@
-#!/usr/bin/env python3
-
-import subprocess
-import sys
-import boto3
-import re
-from pathlib import Path
-import time
+#!/bin/bash
 
 # Define variables
-ACTION = sys.argv[1]  # "start" or "stop"
-INSTANCE_NAME = "sproutchat-devbox"
-PROFILE = "default"
-TERRAFORM_DIR = f"{Path(__file__).resolve().parent}"
-ssh_config_path = Path.home() / ".ssh/config"
+ACTION=$1  # "start", "stop", "build", or "deploy"
+INSTANCE_NAME="sproutchat-devbox"
+PROFILE="default"
+TERRAFORM_DIR=$(dirname "$(realpath "$0")")
+SSH_CONFIG_PATH="$HOME/.ssh/config"
 
 # Initialize boto3 session with the specified profile
-session = boto3.Session(profile_name=PROFILE)
-ec2 = session.client("ec2")
+AWS_PROFILE=$PROFILE
+export AWS_PROFILE
 
+get_instance_id() {
+    # Retrieve instance ID from Terraform output
+    instance_id=$(terraform -chdir="$TERRAFORM_DIR" output -raw instance_id 2>/dev/null)
+    if [[ $instance_id =~ ^[a-zA-Z0-9\-]+$ ]]; then
+        echo "$instance_id"
+    else
+        echo ""
+    fi
+}
 
-def get_instance_id():
-    """Retrieve instance ID from Terraform output."""
-    try:
-        result = subprocess.run(
-            ["terraform", "-chdir=" + TERRAFORM_DIR, "output", "-raw", "instance_id"],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        instance_id = result.stdout.strip()
-        # Ensure valid instance ID format
-        if re.match(r"^[a-zA-Z0-9\-]+$", instance_id):
-            return instance_id
-    except subprocess.CalledProcessError:
-        return None
+initialize_terraform() {
+    # Initialize Terraform configuration and apply changes
+    echo "Initializing Terraform..."
+    terraform -chdir="$TERRAFORM_DIR" init
+}
 
+apply_terraform_build() {
+    # Apply Terraform configuration for building the AMI
+    echo "Building AMI with Terraform..."
+    terraform -chdir="$TERRAFORM_DIR" apply -target=aws_ami_from_instance.custom_sproutchat_dev_ami -auto-approve
+}
 
-def initialize_terraform():
-    """Initialize Terraform configuration and apply changes."""
-    print("Initializing Terraform...")
-    subprocess.run(["terraform", "-chdir=" + TERRAFORM_DIR, "init"], check=True)
-    print("Applying Terraform configuration...")
-    subprocess.run(
-        ["terraform", "-chdir=" + TERRAFORM_DIR, "apply", "-auto-approve"], check=True
-    )
+apply_terraform_deploy() {
+    # Apply Terraform configuration to deploy the instance
+    echo "Deploying instance with Terraform..."
+    terraform -chdir="$TERRAFORM_DIR" apply -target=aws_instance.sproutchat_devbox -auto-approve
+}
 
-
-def update_ssh_config(public_ip):
-    """Update the .ssh/config file with the new IP address."""
-    ssh_config_entry = f"""Host {INSTANCE_NAME}
-    HostName {public_ip}
+update_ssh_config() {
+    local public_ip=$1
+    local ssh_config_entry="Host $INSTANCE_NAME
+    HostName $public_ip
     User ubuntu
     IdentityFile ~/.ssh/id_rsa
-    """
+    "
 
-    # Read existing SSH config, if it exists
-    if ssh_config_path.exists():
-        with open(ssh_config_path, "r") as file:
-            config_content = file.read()
+    if [[ -f $SSH_CONFIG_PATH ]]; then
+        config_content=$(<"$SSH_CONFIG_PATH")
+        if grep -q "Host $INSTANCE_NAME" <<< "$config_content"; then
+            config_content=$(sed -E "/Host $INSTANCE_NAME/,/IdentityFile/ s|HostName .*|HostName $public_ip|" <<< "$config_content")
+        else
+            config_content+=$'\n'"$ssh_config_entry"
+        fi
+    else
+        config_content="$ssh_config_entry"
+    fi
 
-        # Check if the host entry already exists
-        if f"Host {INSTANCE_NAME}" in config_content:
-            # Update existing entry with the new IP
-            config_content = re.sub(
-                f"Host {INSTANCE_NAME}.*?IdentityFile.*?~/.ssh/id_rsa",
-                ssh_config_entry.strip(),
-                config_content,
-                flags=re.DOTALL,
-            )
-        else:
-            # Append the new entry
-            config_content += f"\n{ssh_config_entry}"
-    else:
-        # New config file content
-        config_content = ssh_config_entry
+    echo "$config_content" > "$SSH_CONFIG_PATH"
+    echo "Updated .ssh/config with the new IP address: $public_ip"
+}
 
-    with open(ssh_config_path, "w") as file:
-        file.write(config_content)
+watch_setup() {
+    # Watch the setup process by tailing the cloud-init log
+    local ssh_command=("ssh" "$INSTANCE_NAME" "tail -f /var/log/cloud-init-output.log")
 
-    print(f"Updated .ssh/config with the new IP address: {public_ip}")
+    while true; do
+        "${ssh_command[@]}" && break || {
+            echo "Waiting for the system to be available..."
+            sleep 5
+        }
+    done
+}
 
+manage_instance() {
+    local instance_id=$1
+    if [[ $ACTION == "start" ]]; then
+        aws ec2 start-instances --instance-ids "$instance_id"
+        echo "Starting instance..."
+        aws ec2 wait instance-running --instance-ids "$instance_id"
+        echo "Instance is running."
 
-def watch_setup():
-    """Watch the setup process by tailing the cloud-init log."""
+        public_ip=$(aws ec2 describe-instances --instance-ids "$instance_id" --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+        update_ssh_config "$public_ip"
+        watch_setup
 
-    # Define the SSH command
-    ssh_command = ["ssh", INSTANCE_NAME, "tail -f /var/log/cloud-init-output.log"]
+    elif [[ $ACTION == "stop" ]]; then
+        aws ec2 stop-instances --instance-ids "$instance_id"
+        echo "Stopping instance..."
+        aws ec2 wait instance-stopped --instance-ids "$instance_id"
+        echo "Instance is stopped."
 
-    # Retry loop
-    while True:
-        try:
-            # Attempt to run the SSH command
-            result = subprocess.run(ssh_command, check=True)
-            break  # Exit the loop if successful
+    elif [[ $ACTION == "build" ]]; then
+        initialize_terraform
+        apply_terraform_build
 
-        except subprocess.CalledProcessError:
-            # If SSH connection fails, print waiting message and retry
-            print("Waiting for the system to be available...")
-            time.sleep(5)  # Wait for 5 seconds before retrying
+    elif [[ $ACTION == "deploy" ]]; then
+        initialize_terraform
+        apply_terraform_deploy
 
-
-def manage_instance(instance_id):
-    """Start or stop the instance based on the ACTION argument."""
-    if ACTION == "start":
-        # Start the instance
-        ec2.start_instances(InstanceIds=[instance_id])
-        print("Starting instance...")
-        ec2.get_waiter("instance_running").wait(InstanceIds=[instance_id])
-        print("Instance is running.")
-
-        # Get the current public IP after starting the instance
-        instance_info = ec2.describe_instances(InstanceIds=[instance_id])
-        public_ip = instance_info["Reservations"][0]["Instances"][0]["PublicIpAddress"]
-
-        # Update the .ssh/config file with the new IP
-        update_ssh_config(public_ip)
-
-        # Watch the setup process
-        watch_setup()
-
-    elif ACTION == "stop":
-        # Stop the instance
-        ec2.stop_instances(InstanceIds=[instance_id])
-        print("Stopping instance...")
-        ec2.get_waiter("instance_stopped").wait(InstanceIds=[instance_id])
-        print("Instance is stopped.")
-
-    else:
-        print("Invalid action. Use 'start' or 'stop'.")
-        sys.exit(1)
-
+    else
+        echo "Invalid action. Use 'start', 'stop', 'build', or 'deploy'."
+        exit 1
+    fi
+}
 
 # Main logic
-instance_id = get_instance_id()
+instance_id=$(get_instance_id)
 
-# If INSTANCE_ID is empty, run Terraform to create the infrastructure
-if not instance_id:
-    print("No instance found. Creating infrastructure with Terraform...")
-    initialize_terraform()
-    instance_id = get_instance_id()
-    if not instance_id:
-        print("Failed to retrieve instance ID after Terraform apply.")
-        sys.exit(1)
-else:
-    print(f"Instance already exists with ID: {instance_id}")
+if [[ -z $instance_id && $ACTION == "deploy" ]]; then
+    echo "No instance found. Creating infrastructure with Terraform..."
+    apply_terraform_deploy
+    instance_id=$(get_instance_id)
+    if [[ -z $instance_id ]]; then
+        echo "Failed to retrieve instance ID after Terraform apply."
+        exit 1
+    fi
+else
+    echo "Instance already exists with ID: $instance_id"
+fi
 
-# Manage instance based on the action
-manage_instance(instance_id)
+manage_instance "$instance_id"
