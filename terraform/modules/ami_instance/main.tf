@@ -8,7 +8,12 @@ variable "key_name" {
   type        = string
 }
 
-variable "security_group" {
+variable "subnet_id" {
+  description = "The subnet ID for the instance."
+  type        = string
+}
+
+variable "security_group_id" {
   description = "Security group for SSH access."
   type        = string
 }
@@ -20,11 +25,13 @@ variable "iam_instance_profile" {
 
 # Deploy EC2 instance using the custom AMI
 resource "aws_instance" "ami_instance" {
-  ami                  = var.ami_id
-  instance_type        = "r5d.large"
-  key_name             = var.key_name
-  security_groups      = [var.security_group]
-  iam_instance_profile = var.iam_instance_profile
+  ami           = var.ami_id
+  instance_type = "r5d.large"
+  key_name      = var.key_name
+  subnet_id     = var.subnet_id
+
+  vpc_security_group_ids = [var.security_group_id]
+  iam_instance_profile   = var.iam_instance_profile
 
   tags = {
     Name = "AMIDevInstance"

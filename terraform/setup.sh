@@ -4,6 +4,7 @@ echo "Starting setup script..."
 
 # Function to display usage
 usage() {
+    echo "Invalid arguments provided: $*"
     echo "Usage: $0 -p <python_version> -u <git_user_name> -e <git_user_email>"
     exit 1
 }
