@@ -59,9 +59,9 @@ resource "aws_instance" "base_instance" {
 
   # Configure the root EBS volume
   root_block_device {
-    volume_size           = 120   # Size in GB
-    volume_type           = "gp3" # General Purpose SSD
-    delete_on_termination = false # Persist root volume after termination
+    volume_size = 250   # Size in GB
+    volume_type = "gp3" # General Purpose SSD
+    # delete_on_termination = false # Persist root volume after termination
   }
 
   provisioner "file" {
