@@ -31,6 +31,12 @@ variable "region" {
   default     = "us-east-1"
 }
 
+variable "availability_zone" {
+  description = "The availability zone to deploy resources into."
+  type        = string
+  default     = "us-east-1a"
+}
+
 variable "ami_version" {
   description = "Version identifier for the AMI to force rebuilds when changed."
   type        = string
@@ -47,12 +53,31 @@ provider "aws" {
   region = var.region
 }
 
+# Fetch the default VPC
+data "aws_vpc" "default" {
+  default = true
+}
+
+data "aws_subnet" "default" {
+  filter {
+    name   = "default-for-az"
+    values = ["true"]
+  }
+
+  filter {
+    name   = "availabilityZone"
+    values = [var.availability_zone]
+  }
+}
+
 # Define Security Group for SSH Access
 resource "aws_security_group" "ssh_access" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
+  vpc_id      = data.aws_vpc.default.id
 
   ingress {
+    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -100,13 +125,14 @@ resource "aws_key_pair" "my_key" {
 module "base_instance" {
   source               = "./modules/base_instance"
   key_name             = aws_key_pair.my_key.key_name
-  security_group       = aws_security_group.ssh_access.name
+  subnet_id            = data.aws_subnet.default.id
+  security_group_id    = aws_security_group.ssh_access.id
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
   private_key_path     = var.private_key_path
   base_ami             = var.base_ami
   python_version       = file("${path.module}/../.python-version")
-  git_user_name        = var.git_user_name
   git_user_email       = var.git_user_email
+  git_user_name        = var.git_user_name
 }
 
 # Module to build the AMI
@@ -124,7 +150,8 @@ module "ami_instance" {
   source               = "./modules/ami_instance"
   ami_id               = module.build_ami.custom_ami_id
   key_name             = aws_key_pair.my_key.key_name
-  security_group       = aws_security_group.ssh_access.name
+  subnet_id            = data.aws_subnet.default.id
+  security_group_id    = aws_security_group.ssh_access.id
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
   depends_on = [module.build_ami]
