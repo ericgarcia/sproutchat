@@ -92,6 +92,25 @@ resource "aws_security_group" "ssh_access" {
   }
 }
 
+# Add new IAM policy for DescribeAvailabilityZones
+resource "aws_iam_role_policy" "describe_az_policy" {
+  name = "describe-az-policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:DescribeAvailabilityZones"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 # IAM Role for EC2 with Default Managed Policies
 resource "aws_iam_role" "ec2_role" {
   name = "EC2Role"
@@ -143,7 +162,6 @@ module "build_ami" {
 
   depends_on = [module.base_instance]
 }
-
 
 # Module to deploy the instance using the custom AMI
 module "ami_instance" {
