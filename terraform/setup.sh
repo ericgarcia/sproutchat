@@ -31,6 +31,50 @@ while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
     sleep 5
 done
 
+# Install AWS CLI
+echo "Installing AWS CLI..."
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+rm -rf aws awscliv2.zip
+
+# Install eksctl
+echo "Installing eksctl..."
+curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+
+# Install kubectl
+echo "Installing kubectl..."
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+rm kubectl
+
+# Install Helm
+echo "Installing Helm..."
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# # Create EKS cluster with GPU nodes
+# echo "Creating EKS cluster..."
+# eksctl create cluster \
+#     --name ray-cluster \
+#     --region us-east-1 \
+#     --nodes 2 \
+#     --node-type g4dn.xlarge \
+#     --with-oidc \
+#     --ssh-access \
+#     --ssh-public-key ~/.ssh/id_rsa.pub \
+#     --managed
+
+# # Install NVIDIA device plugin
+# kubectl create -f https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.14.1/nvidia-device-plugin.yml
+
+# Install Ray operator
+echo "Installing Ray operator..."
+helm repo add kuberay https://ray-project.github.io/kuberay-helm/
+helm repo update
+helm install kuberay-operator kuberay/kuberay-operator
+
 # Install Zsh
 echo "Installing Zsh..."
 sudo apt-get update
