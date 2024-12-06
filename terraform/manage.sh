@@ -113,14 +113,41 @@ get_instance_id() {
     echo "$instance_id"
 }
 
+wait_for_ssh() {
+    local instance_id="$1"
+    local max_attempts=12  # Adjust as needed
+    local attempt=1
+
+    echo "Waiting for SSH to become available on $host..."
+
+    while ! nc -z -w5 "$host" 22; do
+        host=$(aws ec2 describe-instances \
+            --instance-ids "$instance_id" \
+            --query "Reservations[].Instances[].PublicIpAddress" \
+            --output text)
+
+        if [ $attempt -ge $max_attempts ]; then
+            echo "SSH is not available after $attempt attempts. Exiting."
+            exit 1
+        fi
+        echo "Attempt $attempt/$max_attempts: SSH not available yet. Retrying in 10 seconds..."
+        attempt=$((attempt + 1))
+        sleep 10
+    done
+
+    update_ssh_config "$host"
+
+    echo "SSH is now available on $host."
+}
+
 start_instance() {
     instance_id=$(get_instance_id)
     echo "Starting $TARGET instance with ID: $instance_id"
     aws ec2 start-instances --instance-ids "$instance_id"
     aws ec2 wait instance-running --instance-ids "$instance_id"
-    # Retrieve public IP after starting
-    public_ip=$(terraform -chdir="$TERRAFORM_DIR" output -raw "${TARGET}_instance_public_ip")
-    update_ssh_config "$public_ip"
+
+    # Wait until SSH is available
+    wait_for_ssh "$instance_id"
 }
 
 stop_instance() {
