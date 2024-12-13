@@ -8,14 +8,15 @@ SSH_CONFIG_PATH="$HOME/.ssh/config"
 
 # Define function for displaying usage information
 usage() {
-    echo "Usage: $0 (build|launch|start|stop|destroy) (ami|base)"
+    echo "Usage: $0 (build|launch|start|stop|destroy) (ami|base|eks)"
     echo "Commands:"
     echo "  build ami       - Build a new AMI."
     echo "  launch ami      - Launch instance from AMI."
     echo "  launch base     - Launch instance from base image directly."
-    echo "  start ami|base  - Start the specified instance."
-    echo "  stop ami|base   - Stop the specified instance."
-    echo "  destroy ami|base - Destroy the specified resources."
+    echo "  launch eks      - Launch EKS cluster."
+    echo "  start ami|base|eks  - Start the specified instance or EKS cluster."
+    echo "  stop ami|base|eks   - Stop the specified instance or EKS cluster."
+    echo "  destroy ami|base|eks - Destroy the specified resources."
     exit 1
 }
 
@@ -32,8 +33,8 @@ TARGET=$2
 if [[ "$ACTION" == "build" && "$TARGET" != "ami" ]]; then
     echo "Error: The build action only supports the 'ami' target."
     usage
-elif [[ "$ACTION" != "build" && ! "$TARGET" =~ ^(ami|base)$ ]]; then
-    echo "Error: The target must be 'ami' or 'base'."
+elif [[ "$ACTION" != "build" && ! "$TARGET" =~ ^(ami|base|eks)$ ]]; then
+    echo "Error: The target must be 'ami', 'base', or 'eks'."
     usage
 fi
 
@@ -66,107 +67,46 @@ build_ami() {
     apply_terraform_target "build_ami"
 }
 
-# Update SSH config with the latest instance's IP
-update_ssh_config() {
-    local instance_ip=$1
-    local ssh_config_entry="Host $INSTANCE_NAME
-    HostName $instance_ip
-    User ubuntu
-    IdentityFile ~/.ssh/id_rsa
-    "
-
-    # Create or update the SSH config entry for the instance
-    if [[ -f $SSH_CONFIG_PATH ]]; then
-        config_content=$(<"$SSH_CONFIG_PATH")
-        if grep -q "Host $INSTANCE_NAME" <<< "$config_content"; then
-            config_content=$(sed -E "/Host $INSTANCE_NAME/,/IdentityFile/ s|HostName .*|HostName $instance_ip|" <<< "$config_content")
-        else
-            config_content+=$'\n'"$ssh_config_entry"
-        fi
-    else
-        config_content="$ssh_config_entry"
-    fi
-
-    echo "$config_content" > "$SSH_CONFIG_PATH"
-    echo "Updated .ssh/config with the new IP address: $instance_ip"
-}
-
 launch_instance() {
     initialize_terraform
     if [[ "$TARGET" == "ami" ]]; then
         apply_terraform_target "ami_instance"
-        public_ip=$(terraform -chdir="$TERRAFORM_DIR" output -raw ami_instance_public_ip)
-    else
+    elif [[ "$TARGET" == "base" ]]; then
         apply_terraform_target "base_instance"
-        public_ip=$(terraform -chdir="$TERRAFORM_DIR" output -raw base_instance_public_ip)
+    elif [[ "$TARGET" == "eks" ]]; then
+        apply_terraform_target "eks"
     fi
-    update_ssh_config "$public_ip"
-}
-
-# Get instance ID for the specified instance type
-get_instance_id() {
-    instance_id=$(terraform -chdir="$TERRAFORM_DIR" output -raw "${TARGET}_instance_id" 2>/dev/null)
-    if [[ -z "$instance_id" ]]; then
-        echo "Error: Instance ID for $TARGET not found."
-        exit 1
-    fi
-    echo "$instance_id"
-}
-
-wait_for_ssh() {
-    local instance_id="$1"
-    local max_attempts=12  # Adjust as needed
-    local attempt=1
-
-    echo "Waiting for SSH to become available on $host..."
-
-    while ! nc -z -w5 "$host" 22; do
-        host=$(aws ec2 describe-instances \
-            --instance-ids "$instance_id" \
-            --query "Reservations[].Instances[].PublicIpAddress" \
-            --output text)
-
-        if [ $attempt -ge $max_attempts ]; then
-            echo "SSH is not available after $attempt attempts. Exiting."
-            exit 1
-        fi
-        echo "Attempt $attempt/$max_attempts: SSH not available yet. Retrying in 10 seconds..."
-        attempt=$((attempt + 1))
-        sleep 10
-    done
-
-    update_ssh_config "$host"
-
-    echo "SSH is now available on $host."
 }
 
 start_instance() {
-    instance_id=$(get_instance_id)
-    echo "Starting $TARGET instance with ID: $instance_id"
-    aws ec2 start-instances --instance-ids "$instance_id"
-    aws ec2 wait instance-running --instance-ids "$instance_id"
-
-    # Wait until SSH is available
-    wait_for_ssh "$instance_id"
-}
-
-stop_instance() {
-    instance_id=$(get_instance_id)
-    echo "Stopping $TARGET instance with ID: $instance_id"
-    aws ec2 stop-instances --instance-ids "$instance_id"
-    aws ec2 wait instance-stopped --instance-ids "$instance_id"
-}
-
-destroy_resources() {
-    if [[ "$TARGET" == "ami" ]]; then
-        destroy_terraform_target "ami_instance"
-    else
-        destroy_terraform_target "base_instance"
+    initialize_terraform
+    if [[ "$TARGET" == "ami" || "$TARGET" == "base" ]]; then
+        apply_terraform_target "${TARGET}_instance"
+    elif [[ "$TARGET" == "eks" ]]; then
+        apply_terraform_target "eks"
     fi
 }
 
-# Execute the appropriate function based on action
-case "$ACTION" in
+stop_instance() {
+    initialize_terraform
+    if [[ "$TARGET" == "ami" || "$TARGET" == "base" ]]; then
+        destroy_terraform_target "${TARGET}_instance"
+    elif [[ "$TARGET" == "eks" ]]; then
+        destroy_terraform_target "eks"
+    fi
+}
+
+destroy_instance() {
+    initialize_terraform
+    if [[ "$TARGET" == "ami" || "$TARGET" == "base" ]]; then
+        destroy_terraform_target "${TARGET}_instance"
+    elif [[ "$TARGET" == "eks" ]]; then
+        destroy_terraform_target "eks"
+    fi
+}
+
+# Execute the specified action
+case $ACTION in
     build)
         build_ami
         ;;
@@ -180,7 +120,7 @@ case "$ACTION" in
         stop_instance
         ;;
     destroy)
-        destroy_resources
+        destroy_instance
         ;;
     *)
         usage

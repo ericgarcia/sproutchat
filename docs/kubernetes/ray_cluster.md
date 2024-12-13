@@ -30,3 +30,7 @@ By following these steps, you should be able to resolve the connection issue and
 ray-cluster.yaml
 
  file to your Kubernetes cluster.
+
+
+
+ aws ec2 authorize-security-group-ingress --group-id sg-0cce808e0cd5feb4c --protocol tcp --port 443 --cidr 0.0.0.0/0

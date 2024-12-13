@@ -31,12 +31,6 @@ variable "region" {
   default     = "us-east-1"
 }
 
-variable "availability_zone" {
-  description = "The availability zone to deploy resources into."
-  type        = string
-  default     = "us-east-1a"
-}
-
 variable "ami_version" {
   description = "Version identifier for the AMI to force rebuilds when changed."
   type        = string
@@ -53,22 +47,31 @@ provider "aws" {
   region = var.region
 }
 
-data "aws_caller_identity" "current" {}
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "5.0.0"
 
-# Fetch the default VPC
-data "aws_vpc" "default" {
-  default = true
-}
+  name = "ray-cluster-vpc"
+  cidr = "10.0.0.0/16"
 
-data "aws_subnet" "default" {
-  filter {
-    name   = "default-for-az"
-    values = ["true"]
+  azs             = ["${var.region}a", "${var.region}b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
+
+  enable_nat_gateway   = true
+  single_nat_gateway   = true
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  # Required tags for EKS
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb"   = "1"
+    "kubernetes.io/cluster/ray-cluster" = "shared"
   }
 
-  filter {
-    name   = "availabilityZone"
-    values = [var.availability_zone]
+  public_subnet_tags = {
+    "kubernetes.io/role/elb"            = "1"
+    "kubernetes.io/cluster/ray-cluster" = "shared"
   }
 }
 
@@ -76,7 +79,7 @@ data "aws_subnet" "default" {
 resource "aws_security_group" "ssh_access" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
-  vpc_id      = data.aws_vpc.default.id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "SSH"
@@ -84,6 +87,27 @@ resource "aws_security_group" "ssh_access" {
     to_port     = 22
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "cluster_access" {
+  name        = "cluster_access"
+  description = "Allow communication between the development instance and EKS cluster"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description     = "Allow all traffic from development instance"
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [aws_security_group.ssh_access.id]
   }
 
   egress {
@@ -112,52 +136,47 @@ resource "aws_iam_role" "ec2_role" {
   })
 }
 
-# # Add new IAM policy for DescribeAvailabilityZones
-# resource "aws_iam_role_policy" "describe_az_policy" {
-#   name = "describe-az-policy"
-#   role = aws_iam_role.ec2_role.id
-
-#   policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Action = [
-#           "ec2:DescribeAvailabilityZones"
-#         ]
-#         Resource = "*"
-#       }
-#     ]
-#   })
-# }
-
-resource "aws_iam_policy" "eks_describe_cluster_policy" {
-  name        = "eks-describe-cluster-policy"
-  description = "Policy to allow describing EKS clusters"
+resource "aws_iam_policy" "eks_full_access_policy" {
+  name        = "eks-full-access-policy"
+  description = "Policy to allow full access to EKS clusters"
 
   policy = jsonencode({
-    Version = "2012-10-17"
+    Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
+        Effect = "Allow",
         Action = [
-          "eks:DescribeCluster"
-        ]
-        Resource = "arn:aws:eks:us-east-1:${data.aws_caller_identity.current.account_id}:cluster/ray-cluster"
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:ListNodegroups",
+          "eks:DescribeNodegroup",
+          "eks:AccessKubernetesApi"
+        ],
+        Resource = "*"
       }
     ]
   })
 }
 
-resource "aws_iam_role_policy_attachment" "attach_eks_describe_cluster_policy" {
+resource "aws_iam_role_policy_attachment" "attach_eks_full_access_policy" {
   role       = aws_iam_role.ec2_role.name
-  policy_arn = aws_iam_policy.eks_describe_cluster_policy.arn
+  policy_arn = aws_iam_policy.eks_full_access_policy.arn
 }
 
-# resource "aws_iam_role_policy_attachment" "attach_describe_az_policy" {
-#   role       = aws_iam_role.ec2_role.name
-#   policy_arn = aws_iam_role_policy.describe_az_policy.arn
-# }
+resource "aws_iam_role_policy_attachment" "attach_ec2_instance_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "attach_ec2_cni_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSCNIPolicy"
+}
+
+resource "aws_iam_role_policy_attachment" "attach_ec2_registry_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
 
 resource "aws_iam_instance_profile" "ec2_profile" {
   name = "EC2InstanceProfile"
@@ -170,11 +189,22 @@ resource "aws_key_pair" "my_key" {
   public_key = file(var.public_key_path)
 }
 
+# EKS Module
+module "eks" {
+  source                         = "./modules/eks"
+  cluster_name                   = "ray-cluster"
+  cluster_version                = "1.28"
+  vpc_id                         = module.vpc.vpc_id
+  subnet_ids                     = module.vpc.private_subnets
+  cluster_endpoint_public_access = true
+  ec2_instance_role_arn          = aws_iam_role.ec2_role.arn
+}
+
 # Module to directly launch an instance without AMI creation
 module "base_instance" {
   source               = "./modules/base_instance"
   key_name             = aws_key_pair.my_key.key_name
-  subnet_id            = data.aws_subnet.default.id
+  subnet_id            = module.vpc.private_subnets[0] # Use the first private subnet
   security_group_id    = aws_security_group.ssh_access.id
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
   private_key_path     = var.private_key_path
@@ -184,34 +214,13 @@ module "base_instance" {
   git_user_name        = var.git_user_name
 }
 
-# Module to build the AMI
-module "build_ami" {
-  source           = "./modules/build_ami"
-  base_instance_id = module.base_instance.instance_id
-  ami_version      = var.ami_version
-
-  depends_on = [module.base_instance]
+# Expose subnet IDs for debugging (Optional)
+output "private_subnets" {
+  value = module.vpc.private_subnets
 }
 
-# Module to deploy the instance using the custom AMI
-module "ami_instance" {
-  source               = "./modules/ami_instance"
-  ami_id               = module.build_ami.custom_ami_id
-  key_name             = aws_key_pair.my_key.key_name
-  subnet_id            = data.aws_subnet.default.id
-  security_group_id    = aws_security_group.ssh_access.id
-  iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
-
-  depends_on = [module.build_ami]
-}
-
-# Expose ami_instance module outputs at the root level
-output "ami_instance_id" {
-  value = module.ami_instance.instance_id
-}
-
-output "ami_instance_public_ip" {
-  value = module.ami_instance.public_ip
+output "public_subnets" {
+  value = module.vpc.public_subnets
 }
 
 # Expose base_instance module outputs at the root level
