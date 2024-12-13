@@ -8,7 +8,7 @@ sentencepiece==0.2.0
 einops==0.8.0
 
 # Optional dependencies (if you need Jupyter and monitoring tools)
-jupyterlab==4.0.5 # For running in Jupyter Notebooks
+jupyterlab==4.2.0 # For running in Jupyter Notebooks
 notebook==7.2.2
 ipywidgets==8.1.5
 numpy==1.26.4      # Commonly needed for machine learning
