@@ -46,6 +46,24 @@ module "eks" {
       max_size      = 3
       desired_size  = 2
       capacity_type = "ON_DEMAND"
+
+      # capacity_type = "SPOT"  # Use spot instances
+
+      # # Handle spot termination
+      # tags = {
+      #   "k8s.io/cluster-autoscaler/enabled" = "true"
+      #   "k8s.io/cluster-autoscaler/ray-cluster" = "owned"
+      #   "aws:ec2spot:fleet-request-id" = "true"
+      # }
+
+      # # Spot instance configs
+      # instance_market_options = {
+      #   market_type = "spot"
+      #   spot_options = {
+      #     max_price = "0.50"  # Optional: set max hourly price
+      #     instance_interruption_behavior = "terminate"  # or "stop"
+      #   }
+      # }
     }
   }
 }
