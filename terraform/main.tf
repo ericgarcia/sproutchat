@@ -111,6 +111,23 @@ resource "aws_iam_role_policy" "describe_az_policy" {
   })
 }
 
+resource "aws_iam_policy" "eks_describe_cluster_policy" {
+  name        = "eks-describe-cluster-policy"
+  description = "Policy to allow describing EKS clusters"
+  policy      = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster"
+        ]
+        Resource = "arn:aws:eks:us-east-1:${data.aws_caller_identity.current.account_id}:cluster/ray-cluster"
+      }
+    ]
+  })
+}
+
 # IAM Role for EC2 with Default Managed Policies
 resource "aws_iam_role" "ec2_role" {
   name = "EC2Role"
@@ -127,6 +144,16 @@ resource "aws_iam_role" "ec2_role" {
       }
     ]
   })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_eks_describe_cluster_policy" {
+  role       = data.aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.eks_describe_cluster_policy.arn
+}
+
+resource "aws_iam_role_policy_attachment" "attach_describe_az_policy" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = aws_iam_policy.describe_az_policy.arn
 }
 
 resource "aws_iam_instance_profile" "ec2_profile" {

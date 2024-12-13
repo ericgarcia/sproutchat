@@ -13,3 +13,8 @@ notebook==7.2.2
 ipywidgets==8.1.5
 numpy==1.26.4      # Commonly needed for machine learning
 psutil==5.9.5      # System monitoring (helpful for checking memory usage)
+
+# Ray extras
+ray[default]
+ray[serve]
+ray[k8s]
